@@ -6,86 +6,88 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const readline_1 = __importDefault(require("readline"));
 const app = (0, express_1.default)();
 const port = 3000;
-// Функція для читання файлу і обробки чисел
-function processFile(filePath) {
+async function processFile(filePath) {
     return new Promise((resolve, reject) => {
-        fs_1.default.readFile(filePath, "utf8", (err, data) => {
-            if (err)
-                return reject(err);
-            // Зчитуємо числа і перетворюємо на масив
-            const numbers = data
-                .split("\n")
-                .map(Number)
-                .filter((n) => !isNaN(n));
-            // Знаходимо максимальне та мінімальне значення
-            const max = Math.max(...numbers);
-            const min = Math.min(...numbers);
-            // Обчислюємо середнє арифметичне
-            const sum = numbers.reduce((acc, num) => acc + num, 0);
-            const mean = sum / numbers.length;
-            // Сортуємо числа для обчислення медіани
-            const sortedNumbers = [...numbers].sort((a, b) => a - b);
+        const stream = fs_1.default.createReadStream(filePath);
+        const rl = readline_1.default.createInterface({
+            input: stream,
+            crlfDelay: Infinity,
+        });
+        let max = -Infinity;
+        let min = Infinity;
+        let sum = 0;
+        let count = 0;
+        let numbers = [];
+        let currentIncSeq = [];
+        let maxIncSeq = [];
+        let currentDecSeq = [];
+        let maxDecSeq = [];
+        rl.on("line", (line) => {
+            const num = Number(line);
+            if (!isNaN(num)) {
+                if (num > max)
+                    max = num;
+                if (num < min)
+                    min = num;
+                sum += num;
+                count++;
+                numbers.push(num);
+                // Обробка для зростаючих послідовностей
+                if (currentIncSeq.length === 0 ||
+                    num > currentIncSeq[currentIncSeq.length - 1]) {
+                    currentIncSeq.push(num);
+                }
+                else {
+                    if (currentIncSeq.length > maxIncSeq.length) {
+                        maxIncSeq = currentIncSeq;
+                    }
+                    currentIncSeq = [num];
+                }
+                // Обробка для спадаючих послідовностей
+                if (currentDecSeq.length === 0 ||
+                    num < currentDecSeq[currentDecSeq.length - 1]) {
+                    currentDecSeq.push(num);
+                }
+                else {
+                    if (currentDecSeq.length > maxDecSeq.length) {
+                        maxDecSeq = currentDecSeq;
+                    }
+                    currentDecSeq = [num];
+                }
+            }
+        });
+        rl.on("close", () => {
+            if (currentIncSeq.length > maxIncSeq.length) {
+                maxIncSeq = currentIncSeq;
+            }
+            if (currentDecSeq.length > maxDecSeq.length) {
+                maxDecSeq = currentDecSeq;
+            }
+            const mean = sum / count;
+            const sortedNumbers = numbers.sort((a, b) => a - b);
             const middle = Math.floor(sortedNumbers.length / 2);
             const median = sortedNumbers.length % 2 !== 0
                 ? sortedNumbers[middle]
                 : (sortedNumbers[middle - 1] + sortedNumbers[middle]) / 2;
-            // Знаходимо найдовші зростаючі та спадаючі послідовності
-            const increasingSequence = findLongestIncreasingSequence(numbers);
-            const decreasingSequence = findLongestDecreasingSequence(numbers);
             resolve({
                 max,
                 min,
                 mean,
                 median,
-                longestIncreasingSequence: increasingSequence,
-                longestDecreasingSequence: decreasingSequence,
+                longestIncreasingSequence: maxIncSeq,
+                longestDecreasingSequence: maxDecSeq,
             });
+        });
+        rl.on("error", (err) => {
+            reject(err);
         });
     });
 }
-// Функція для знаходження найдовшої зростаючої послідовності
-function findLongestIncreasingSequence(numbers) {
-    let maxSeq = [];
-    let currentSeq = [];
-    for (let i = 0; i < numbers.length; i++) {
-        if (i === 0 || numbers[i] > numbers[i - 1]) {
-            currentSeq.push(numbers[i]);
-        }
-        else {
-            if (currentSeq.length > maxSeq.length) {
-                maxSeq = currentSeq;
-            }
-            currentSeq = [numbers[i]];
-        }
-    }
-    if (currentSeq.length > maxSeq.length) {
-        maxSeq = currentSeq;
-    }
-    return maxSeq;
-}
-// Функція для знаходження найдовшої спадаючої послідовності
-function findLongestDecreasingSequence(numbers) {
-    let maxSeq = [];
-    let currentSeq = [];
-    for (let i = 0; i < numbers.length; i++) {
-        if (i === 0 || numbers[i] < numbers[i - 1]) {
-            currentSeq.push(numbers[i]);
-        }
-        else {
-            if (currentSeq.length > maxSeq.length) {
-                maxSeq = currentSeq;
-            }
-            currentSeq = [numbers[i]];
-        }
-    }
-    if (currentSeq.length > maxSeq.length) {
-        maxSeq = currentSeq;
-    }
-    return maxSeq;
-}
 app.get("/process", async (req, res) => {
+    req.setTimeout(5 * 60 * 1000); // Збільшити таймаут до 5 хвилин
     try {
         const result = await processFile(path_1.default.resolve(__dirname, "10m.txt"));
         res.json(result);
