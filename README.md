@@ -1,4 +1,4 @@
-# Number Analysis Project
+# Ts-nodejs-numbers-research Project
 
 This project reads a large file of integers and calculates the following metrics:
 
@@ -18,8 +18,8 @@ Ensure you have Node.js and npm (Node Package Manager) installed on your machine
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/yourusername/number-analysis.git
-   cd number-analysis
+   git clone https://github.com/yourusername/ts-nodejs-numbers-research.git
+   cd ts-nodejs-numbers-research
    ```
 
 2. **Install dependencies:**
